@@ -1,29 +1,52 @@
-Table Scroll
+# Table Scroll
+jQuery table-scroll plugin.
 
-Try it here - http://volodymyr-bobko.github.io/table-scroll/ 
-
-jQuery.table_scroll plugin adds vertical and horizontal scrollbars to HTML table element.
-
-Features
-  Vertical scrolling.
-  Horizontal scrolling with possibility to specify left and right fixed columns.
-  Touch screen support.
-  Auto detect vertical scrollable area and excluds thead and tfoot.
-  Doesn't clone table elements - so your events stay bound.
-  Doesn't divide your table into separate parts for scrolling, it means that width of column header is always in sync with cells width.
-
-API
-
-Options:
-  rowsInHeader - Default: 1. Number of rows in table header. If table has thead element defined, this option should not be specified.
-  rowsInFooter - Default: 0. Number of rows in table footer. If table has tfoot element defined, this option should not be specified.
-  rowsInScrollableArea - Default: 10. Number of rows that remains visible in scrollable area.
-  overflowY - Default: 'auto'. Possible values 'scroll', 'auto'.
-    'auto' - Scroll appears only if overflowing rows exists.
-    'scroll' - Scroll is always visible, and will be disabled if there are no overflowing rows.
-  fixedColumnsLeft - Default: 0. Number of columns at the left side of scrollable area that will not be scrolled.
-  fixedColumnsRight - Default: 0. Number of columns at the right side of scrollable area that will not be scrolled.
-  columnsInScrollableArea - Default: 5.
-  overflowX - Default: 'auto'. Possible values 'scroll', 'auto'.
-    'auto' - Scroll appears only if overflowing columns exists.
-    'scroll' - Scroll is always visible, and will be disabled if there are no overflowing columns.
+Try it here - http://volodymyr-bobko.github.io/table-scroll
+## Features
+  * Vertical scrolling with possibility to specify top and/or bottom fixed/frozen rows.
+  * Horizontal scrolling with possibility to specify left and/or right fixed/frozen columns.
+  * Touch screen support.
+  * Auto detect scrollable area of table.
+  * Doesn't clone table elements - so the table's events stay bound.
+  * Doesn't divide the table into separate parts for scrolling, so that the sizes of fixed-row and fixed-column cells remain in sync with other cells' sizes.
+# Dependencies
+* jquery >= 1.7
+* jquery-ui >= 1.10  
+# License
+GNU Affero GPL v.3 or, at the distributor's discretion, a later version. See http://www.gnu.org/licenses#AGPL
+## Usage
+```
+<head>
+    <script type="text/javascript" src="some-root-url/jquery.min.js"></script>
+    <script type="text/javascript" src="some-root-url/jquery-ui.min.js"></script>
+</head>
+<body>
+<table id='scroller'>
+table contents
+</table>
+$('#scroller').table_scroll({
+ options
+});
+</body>
+```
+## API Options
+* **fixedRowsTop** - Default: if the table has a `<thead`> element, the number of rows in that, or else 1. Number of 'frozen' rows at top of the table.
+* **fixedRowsBottom** - Default: if the table has a `<tfoot`> element, the number of rows in that, or else 0. Number of 'frozen' rows at the bottom of the table.
+* **scrollableRows** - Default: auto. Number of rows that remain visible in scrollable area.
+* **visibleHeight** - Default: 'auto'. Maximum displayable table-height. Possible values 'auto', a specific size
+  * 'auto' maximum possible consistent with parent object.
+  * size in any relevent css-unit.
+* **scrollY** - Default: 0. Session-start row-scroll count.
+* **overflowY** - Default: 'auto'. Possible values 'scroll', 'auto'.
+  * 'auto' - Scroll appears only if overflowing rows exists.
+  * 'scroll' - Scroll is always visible, but will be disabled if there are no overflowing rows.
+* **fixedColumnsLeft** - Default: 0. Number of columns at the left side of the table that will not be scrolled.
+* **fixedColumnsRight** - Default: 0. Number of columns at the right side of the table that will not be scrolled.
+* **scrollableColumns** - Default: auto. Number of columns that remain visible in scrollable area.
+* **visibleWidth** - Default: 'auto'. Maximum displayable table-width. Possible values 'auto', a specific size
+  * 'auto' maximum possible consistent with parent object.
+  * size in any relevent css-unit.
+* **scrollX** - Default: 0. Session-start column-scroll count.
+* **overflowX** - Default: 'auto'. Possible values 'scroll', 'auto'.
+  * 'auto' - Scroll appears only if overflowing columns exists.
+  * 'scroll' - Scroll is always visible, but will be disabled if there are no overflowing columns.
