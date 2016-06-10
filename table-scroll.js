@@ -472,14 +472,8 @@ See http://www.gnu.org/licenses#AGPL.
 
             var tbl = this.$table[0];
             for (var i = this.options.fixedRowsTop; i < tbl.rows.length - this.options.fixedRowsBottom - $('.sg-h-scroll-container', this.$table).length; i++) {
-                var visible = false;
-
                 if (i >= this.options.fixedRowsTop + startFrom &&
                     i < this.options.fixedRowsTop + startFrom + this.options.scrollableRows) {
-                    visible = true;
-                }
-
-                if (visible) {
                     $(tbl.rows[i]).show();
                 } else {
                     $(tbl.rows[i]).hide();
