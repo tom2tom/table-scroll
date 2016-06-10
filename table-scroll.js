@@ -437,7 +437,7 @@ See http://www.gnu.org/licenses#AGPL.
             $topContainer.height($container.height());
             var $heightDiv = $('div', $topContainer);
             $heightDiv.height((this._yNumberOfScrollableRows() / this._yScrollHeight()) * $container.height());
-            topContainer.show();
+            $topContainer.show();
         },
 
         _yFirstVisibleRowHeight: function(){
@@ -600,7 +600,7 @@ See http://www.gnu.org/licenses#AGPL.
 
             for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
                 var row = rows[rowIndex];
-                var indAdjustments = $(row)[0][CELL_SPAN_ADJUSTMENTS];
+                var indAdjustments = row[CELL_SPAN_ADJUSTMENTS]; //?
                 if (!indAdjustments)
                     indAdjustments = [];
 
