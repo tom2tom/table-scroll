@@ -41,7 +41,7 @@ See http://www.gnu.org/licenses#AGPL.
         CELL_SPAN_ADJUSTMENTS = '_sg_adj_';
 
     $.widget('custom.table_scroll', {
-        version: '2.1.0',
+        version: '1.8', //min jQui version
         options:
         {
             fixedRowsTop: null,
@@ -141,8 +141,12 @@ See http://www.gnu.org/licenses#AGPL.
             var limit, i, last, sizes, container = null;
             if (this.options.scrollableRows == 'auto' || this.autorows) {
                 if (this.$table[0].rows.length > this.options.fixedRowsTop + this.options.fixedRowsBottom) {
-                    container = this.$table.parent();
-                    limit = container.height();
+                    if (this.options.visibleHeight && this.options.visibleHeight != 'auto') {
+                        limit = this.options.visibleHeight; //TODO support all CSS units
+                    } else {
+                        container = this.$table.parent();
+                        limit = container.height();
+                    }
                     sizes = $('tr', this.$table).map(function() {
                         return $(this).outerHeight();
                     }).get();
@@ -180,6 +184,13 @@ See http://www.gnu.org/licenses#AGPL.
             if (this.options.scrollableColumns == 'auto' || this.autocols) {
                 var number = this._NumberOfColumns();
                 if(number > this.options.fixedColumnsLeft + this.options.fixedColumnsRight) {
+                    if (this.options.visibleWidth && this.options.visibleWidth != 'auto') {
+                        limit = this.options.visibleWidth;
+                    } else {
+                        if (container === null)
+                            container = this.$table.parent();
+                        limit = container.height();
+                    }
                     limit = container.width();
                     sizes = $('tr:first', this.$table).children().map(function() {
                         return $(this).outerWidth();
