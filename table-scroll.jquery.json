@@ -9,24 +9,24 @@
         "table",
 		"touch-screen"
     ],
-    "version": "2.0.4",
+    "version": "2.1.0",
     "author": {
         "name": "Volodymyr Bobko",
         "url": "http://icocentre.com"
     },
     "licenses": [
         {
-            "type": "GPL-2.0",
-            "url": "http://opensource.org/licenses/GPL-2.0"
+            "type": "AGPL-3.0+",
+            "url": "http://www.gnu.org/licenses#AGPL"
         }
     ],
-    "bugs": "https://github.com/vol-bob/table-scroll/issues",
-    "homepage": "https://github.com/vol-bob/table-scroll",
+    "bugs": "https://github.com/tom2tom/table-scroll/issues",
+    "homepage": "https://github.com/tom2tom/table-scroll",
     "demo" : "http://table-scroll.site90.com/",
-    "docs": "https://github.com/vol-bob/table-scroll/wiki",
-    "download": "https://codeload.github.com/vol-bob/table-scroll/zip/master",
+    "docs": "https://github.com/tom2tom/table-scroll/wiki",
+    "download": "https://codeload.github.com/tom2tom/table-scroll/zip/master",
     "dependencies": {
-        "jquery": ">=2.0",
-        "jquery-ui": ">=1.10"
+        "jquery": ">=1.7",
+        "jquery-ui": ">=1.8"
     }
 }
