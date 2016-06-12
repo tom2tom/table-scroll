@@ -189,7 +189,7 @@ See http://www.gnu.org/licenses#AGPL.
                     } else {
                         if (container === null)
                             container = this.$table.parent();
-                        limit = container.height();
+                        limit = container.width();
                     }
                     limit = container.width();
                     sizes = $('tr:first', this.$table).children().map(function() {
