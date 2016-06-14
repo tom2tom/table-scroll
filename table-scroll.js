@@ -33,6 +33,12 @@ See http://www.gnu.org/licenses#AGPL.
  overflowX - Default: 'auto'. Possible values 'scroll', 'auto'.
   'auto' - Scroll appears only if overflowing columns exists.
   'scroll' - Scrollbar is always visible, but will be disabled if there are no overflowing columns.
+
+Optionally apply CSS for:
+td.sg-v-scroll-cell
+div.sg-v-scroll-container (located inside td.sg-v-scroll-cell)
+td.sg-h-scroll-cell
+div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
 */
 
 (function ($, window) { "$:nomunge, window:nomunge";
@@ -50,8 +56,8 @@ See http://www.gnu.org/licenses#AGPL.
             fixedColumnsLeft: 0,
             fixedColumnsRight: 0,
 
-            scrollableRows: 10,  /*number, auto*/
-            scrollableColumns: 5,  /*number, auto*/
+            scrollableRows: 'auto',  /*integer, auto*/
+            scrollableColumns: 'auto',  /*integer, auto*/
 
             scrollX: 0,
             scrollY: 0,
@@ -92,11 +98,12 @@ See http://www.gnu.org/licenses#AGPL.
 
             this._yUpdateScrollHeights();
 
-            this.$table.on('mousewheel', $.proxy(this._tableMouseWheel, this));
-            this.$table.on('DOMMouseScroll', $.proxy(this._tableMouseWheel, this)); // Firefox
-            this.$table.on('touchstart', $.proxy(this._touchStart, this));
-            this.$table.on('touchmove', $.proxy(this._touchMove, this));
-            this.$table.on('touchend', $.proxy(this._touchEnd, this));
+            // DOMMouseScroll for Firefox
+            this.$table.on('mousewheel', $.proxy(this._tableMouseWheel, this))
+             .on('DOMMouseScroll', $.proxy(this._tableMouseWheel, this))
+             .on('touchstart', $.proxy(this._touchStart, this))
+             .on('touchmove', $.proxy(this._touchMove, this))
+             .on('touchend', $.proxy(this._touchEnd, this));
             $(window).on('resize', $.proxy(this._reSize, this));
 
             this._xMoveScroll(this.options.scrollX);
@@ -137,15 +144,43 @@ See http://www.gnu.org/licenses#AGPL.
             return this._columnsCount;
         },
 
+        //adapted from blog.stchur.com/2006/09/20/converting-to-pixels-with-javascript
+        _convertToPixels: function (len, context) {
+            if (typeof(len) === 'number' || (/px$/.test(len))) {
+                return parseInt(len, 10);
+            }
+
+            var $tmp = $('<div></div>');
+            $tmp.css({'visbility':'hidden', 'position':'absolute', 'line-height':0 });
+
+            if (/%$/.test(len)) {
+                _context = context.parentNode || context;
+                $tmp.css('height', len);
+            } else {
+                $tmp.css({'border-style':'solid', 'border-bottom-width':0,
+                'border-top-width':len});
+            }
+
+            if (!context) {
+                context = document.body;
+            }
+
+            context.appendChild($tmp[0]);
+            var px = $tmp[0].offsetHeight;
+            context.removeChild($tmp[0]);
+
+            return px;
+        },
+
         _CountScrollables: function () {
-            var limit, i, last, sizes, container = null;
+            var limit, i, last, sizes, vscroll = false, container = null;
             if (this.options.scrollableRows == 'auto' || this.autorows) {
                 if (this.$table[0].rows.length > this.options.fixedRowsTop + this.options.fixedRowsBottom) {
                     if (this.options.visibleHeight && this.options.visibleHeight != 'auto') {
-                        limit = this.options.visibleHeight; //TODO support all CSS units
+                        limit = this._convertToPixels(this.options.visibleHeight, this.$table[0]);
                     } else {
                         container = this.$table.parent();
-                        limit = container.height();
+                        limit = container.height() - (this.$table.outerHeight() - this.$table.height());
                     }
                     sizes = $('tr', this.$table).map(function() {
                         return $(this).outerHeight();
@@ -172,9 +207,11 @@ See http://www.gnu.org/licenses#AGPL.
                             limit -= sizes[i];
                         }
                     }
-                    if (i < last)
-                       i -= 2;
-                    this.options.scrollableRows = i;
+                    if (limit < 0) { //v-scolling needed
+                        vscroll = true;
+                        i--; //last row can't fit
+                    }
+                    this.options.scrollableRows = Math.max(i, 0);
                 } else {
                     this.options.scrollableRows = 0;
                 }
@@ -185,13 +222,12 @@ See http://www.gnu.org/licenses#AGPL.
                 var number = this._NumberOfColumns();
                 if(number > this.options.fixedColumnsLeft + this.options.fixedColumnsRight) {
                     if (this.options.visibleWidth && this.options.visibleWidth != 'auto') {
-                        limit = this.options.visibleWidth;
+                        limit = this._convertToPixels(this.options.visibleWidth, this.$table[0]);
                     } else {
                         if (container === null)
                             container = this.$table.parent();
-                        limit = container.width();
+                        limit = container.width() - (this.$table.outerWidth() - this.$table.width());
                     }
-                    limit = container.width();
                     sizes = $('tr:first', this.$table).children().map(function() {
                         return $(this).outerWidth();
                     }).get();
@@ -217,9 +253,14 @@ See http://www.gnu.org/licenses#AGPL.
                             limit -= sizes[i];
                         }
                     }
-                    if (i < last)
-                       i -= 2;
-                    this.options.scrollableColumns = i;
+                    if (limit < 0) { //h-scolling needed
+                        if (vscroll) {
+                            i -= 2; //hacky space-allowance for vertical scrollbar
+//                            if (this.options.scrollableRows > 0)
+//                                this.options.scrollableRows--; //horiz bar-allowance
+                        }
+                    }
+                    this.options.scrollableColumns = Math.max(i, 0);
                 } else {
                     this.options.scrollableColumns = 0;
                 }
@@ -259,23 +300,24 @@ See http://www.gnu.org/licenses#AGPL.
 
                 if (this.options.fixedColumnsLeft > 0) {
                     var $cell = $(row.insertCell(0));
-                    $cell.attr('colspan', this.options.fixedColumnsLeft);
+                    $cell.attr('colspan', this.options.fixedColumnsLeft)
+                     .css({ 'margin':0, 'border':0, 'padding':0 });
                 }
 
                 var $container = $(row.insertCell(1));
-                $container.attr('colspan', this._xScrollCount());
-                $container.addClass('sg-x-scroll-cell');
+                $container.attr('colspan', this._xScrollCount())
+                 .addClass('sg-h-scroll-cell');
 
                 var $widthDivContainer = $('<div class="sg-h-scroll-container"></div>');
-                $widthDivContainer.css({ 'overflow-x': 'scroll', 'overflow': 'scroll', 'margin-right': '-20000px' });
-                $widthDivContainer.width($container.width());
+                $widthDivContainer.css({ 'overflow-x':'scroll', 'overflow':'scroll', 'margin-right':'-20000px' })
+                 .width($container.width());
 
                 var $widthDiv = $('<div style="height: 1px;"></div>');
-                $widthDiv.width((this._xNumberOfScrollableColumns() / this._xScrollCount()) * $container.width());
-                $widthDiv.appendTo($widthDivContainer);
+                $widthDiv.width((this._xNumberOfScrollableColumns() / this._xScrollCount()) * $container.width())
+                 .appendTo($widthDivContainer);
 
-                $widthDivContainer.appendTo($container);
-                $widthDivContainer.scroll($.proxy(this._xUpdateColumnsVisibility, this));
+                $widthDivContainer.appendTo($container)
+                 .scroll($.proxy(this._xUpdateColumnsVisibility, this));
 
                 if (this.options.fixedColumnsRight > 0) {
                     var $cell = $(row.insertCell(2));
@@ -307,8 +349,8 @@ See http://www.gnu.org/licenses#AGPL.
 
         _xMoveScroll: function(position) {
             position = Math.min(this._xScrollableColumnsCount(), position);
-            position = Math.max(position, 0);
-
+            if (position < 0)
+                 position = 0;
             position = this._xColumnScrollStep() * position;
             var $widthDivContainer = $('.sg-h-scroll-container', this.$table);
             if ($widthDivContainer.scrollLeft() != position)
@@ -443,22 +485,25 @@ See http://www.gnu.org/licenses#AGPL.
 
             if (this._yScrollNeeded() || this.options.overflowY == 'scroll') {
                 var $cell = $(tbl.rows[0].insertCell(tbl.rows[0].cells.length));
-                if ($cell.prev().is('th'))
-                  $cell[0].outerHTML = '<th></th>';
+                if ($cell.prev().is('th')) {
+                    $cell[0].outerHTML = '<th style="margin:0;border:0;padding:0;"></th>'; //TODO old-browser compatibility
+                } else {
+                    $cell.css({ 'margin':0, 'border':0, 'padding':0 });
+                }
                 $cell.attr('rowspan', this.options.fixedRowsTop);
 
                 var $container = $(tbl.rows[this.options.fixedRowsTop + this.startFrom].insertCell(tbl.rows[this.options.fixedRowsTop + this.startFrom].cells.length));
-                $container.attr('rowspan', this._yScrollCount());
-                $container.attr('width', '1px');
-                $container.addClass('sg-v-scroll-cell');
+                $container.attr('rowspan', this._yScrollCount())
+                 .attr('width', '1px')
+                 .addClass('sg-v-scroll-cell');
 
                 var $heightDivContainer = $('<div class="sg-v-scroll-container"></div>');
-                $heightDivContainer.css({'overflow-y': 'scroll', 'overflow': 'scroll'});
-                $heightDivContainer.height($container.height());
+                $heightDivContainer.css({'overflow-y': 'scroll', 'overflow': 'scroll'})
+                 .height($container.height());
 
                 var $heightDiv = $('<div style="width: 1px;"></div>');
-                $heightDiv.height((this._yNumberOfScrollableRows() / this._yScrollCount()) * $container.height());
-                $heightDiv.appendTo($heightDivContainer);
+                $heightDiv.height((this._yNumberOfScrollableRows() / this._yScrollCount()) * $container.height())
+                 .appendTo($heightDivContainer);
 
                 $heightDivContainer.appendTo($container);
                 this._attachToEndScrolling($heightDivContainer, $.proxy(this._yUpdateRowsVisibility, this));
@@ -493,8 +538,8 @@ See http://www.gnu.org/licenses#AGPL.
 
         _yMoveScroll: function(position) {
             position = Math.min(this._yScrollableRowsCount(), position);
-            position = Math.max(position, 0);
-
+            if (position < 0)
+                position = 0;
             var step = this._yRowScrollStep();
             position = step * position;
             var $heightDivContainer = $('.sg-v-scroll-container', this.$table);
@@ -510,13 +555,13 @@ See http://www.gnu.org/licenses#AGPL.
 
             if (trCurrentContainer != trTargetContainer) {
                 var $newCell = $(trTargetContainer.insertCell(trTargetContainer.cells.length));
-                $newCell.attr('rowspan', this._yScrollCount());
-                $newCell.addClass('sg-v-scroll-cell');
-                $newCell.attr('width', '1px');
+                $newCell.attr('rowspan', this._yScrollCount())
+                 .addClass('sg-v-scroll-cell')
+                 .attr('width', '1px');
 
                 var $scrollDiv = $('.sg-v-scroll-container', $(trCurrentContainer));
-                $scrollDiv.height(0);
-                $scrollDiv.appendTo($newCell);
+                $scrollDiv.height(0)
+                 .appendTo($newCell);
                 trCurrentContainer.deleteCell(trCurrentContainer.cells.length - 1);
 
                 $heightDivContainer.height($newCell.height());
@@ -530,11 +575,12 @@ See http://www.gnu.org/licenses#AGPL.
         _yUpdateScrollHeights: function () {
 
             var $topContainer = $('.sg-v-scroll-container', this.$table),
-                $container = $topContainer.closest('td');
-            $topContainer.hide();
-            $topContainer.height($container.height());
-            var $heightDiv = $('div', $topContainer);
-            $heightDiv.height((this._yNumberOfScrollableRows() / this._yScrollCount()) * $container.height());
+                $heightDiv = $('div', $topContainer),
+                $container = $topContainer.closest('td'),
+                high = (this._yNumberOfScrollableRows(high) / this._yScrollCount()) * $container.height();
+            $topContainer.hide()
+             .height($container.height());
+            $heightDiv.height(high);
             $topContainer.show();
         },
 
@@ -694,11 +740,18 @@ See http://www.gnu.org/licenses#AGPL.
         },
 
         _reSize: function (event) {
-            this._CountScrollables();
-            if (this.options.scrollableRows == 'auto' || this.autorows)
-              this._yUpdateRowsVisibility();
-            if (this.options.scrollableColumns == 'auto' || this.autocols)
-              this._xUpdateColumnsVisibility();
+            var timer = null;
+            if (!timer) {
+                var context = this;
+                timer = setTimeout(function () {
+                   context._CountScrollables();
+                   if (context.options.scrollableRows == 'auto' || context.autorows)
+                       context._yUpdateRowsVisibility();
+                   if (context.options.scrollableColumns == 'auto' || context.autocols)
+                       context._xUpdateColumnsVisibility();
+                   timer = null;
+                }, 333);
+            }
         },
 
         _setActualCellIndexes: function() {
