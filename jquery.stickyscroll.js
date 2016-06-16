@@ -783,17 +783,27 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
         var cfg = event.data;
         if (cfg.resizeTimer === null) {
           _countScrollables(cfg); //count before detaching ! (uses parent)
-          var $p = cfg.$table.parent(); //speedup
-          $p.detach(cfg.$table);
           if (cfg.scrollableRows == 'auto' || cfg.autorows) {
+            if(!cfg.vbar)
+              _yInitScroll(cfg);
             _yUpdateRowsVisibility(cfg);
             _yUpdateScrollHeights(cfg);
+            if (!cfg.autorows) {
+              cfg.scrollableRows == 'auto';
+              cfg.vbar = false;
+            }
           }
           if (cfg.scrollableColumns == 'auto' || cfg.autocols) {
+            if(!cfg.hbar)
+              _xInitScroll(cfg);
             _xUpdateColumnsVisibility(cfg);
             _xUpdateScrollWidths(cfg);
+            if (!cfg.autocols) {
+              cfg.scrollableRows == 'auto';
+              //TODO remove scrollbar bits
+              cfg.hbar = false;
+            }
           }
-          $p.append(cfg.$table);
           cfg.resizeTimer = setTimeout(function() {
             cfg.resizeTimer = null;
           }, 333);
