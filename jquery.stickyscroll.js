@@ -81,7 +81,6 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
           else
             cfg.fixedRowsBottom = 0;
         }
-        _CountScrollables(cfg);
       }
 
       function _NumberOfColumns(cfg) {
@@ -93,7 +92,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
             return this.cells.length;
           }).get());
 
-        if ($('.sg-v-scroll-cell', cfg.$table).length > 0)
+        if (cfg.vbar) //$('.sg-v-scroll-cell', cfg.$table).length > 0)
           cfg._columnsCount--;
 
         return cfg._columnsCount;
@@ -134,7 +133,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
         return px;
       }
 
-      function _CountScrollables(cfg) {
+      function _countScrollables(cfg) {
         var limit, i, last, sizes, vscroll = false,
           container = null;
         if (cfg.scrollableRows == 'auto' || cfg.autorows) {
@@ -263,47 +262,65 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
 
         if (_xScrollNeeded(cfg) || cfg.overflowX == 'scroll') {
           var tbl = cfg.$table[0],
-            row = tbl.insertRow(tbl.rows.length);
+            row = tbl.insertRow(tbl.rows.length);//insert 'scrollbar' row at end of table
 
           if (cfg.fixedColumnsLeft > 0) {
+          //insert empty 'padding' cell at left of scrollbar-row
             var $cell = $(row.insertCell(0));
-            $cell.attr('colspan', cfg.fixedColumnsLeft)
-              .css({
+            $cell.css({
                 'margin': 0,
                 'border': 0,
                 'padding': 0
               });
+            if (cfg.fixedColumnsLeft > 1)
+              $cell.attr('colspan', cfg.fixedColumnsLeft); //extend across all fixed left
           }
+          //insert 'scrollbar' cell at left of left-most scrollable column
+          var $container = $(row.insertCell(-1)),
+           //longer bar if vscroll active && right-frozen-columns = 0
+           span = _xScrollCount(cfg); // + (cfg.vbar && cfg.fixedColumnsRight == 0); //if vbar not yet known?
+          $container.attr('colspan', span)
+            .css({'margin-left':0, 'margin-right':0, 'padding-left':0, 'padding-right':0})
+            .addClass('sg-h-scroll-cell'); //may provide other styling
+          var cw = $container.outerWidth();
 
-          var $container = $(row.insertCell(1));
-          $container.attr('colspan', _xScrollCount(cfg))
-            .addClass('sg-h-scroll-cell');
-
-          var $widthDivContainer = $('<div class="sg-h-scroll-container"></div>');
+          var $widthDivContainer = $('<div></div>');
           $widthDivContainer.css({
+              'margin-left': 0, 'margin-right': -20000,
+              'padding-left': 0, 'padding-right': 0,
               'overflow-x': 'scroll',
-              'overflow': 'scroll',
-              'margin-right': '-20000px'
+              'overflow': 'scroll'
             })
-            .width($container.width());
+           .addClass('sg-h-scroll-container')
+            .width(cw);
 
-          var $widthDiv = $('<div style="height: 1px;"></div>');
-          $widthDiv.width((_xNumberOfScrollableColumns(cfg) / _xScrollCount(cfg)) * $container.width())
+          var $widthDiv = $('<div></div>');
+          $widthDiv.height(1).width((_xNumberOfScrollableColumns(cfg) / _xScrollCount(cfg)) * cw)
             .appendTo($widthDivContainer);
 
           $widthDivContainer.appendTo($container)
             .on('scroll', cfg, function() {
-                clearTimeout($.data($widthDivContainer[0],'scrollTimer'));
-                $.data($widthDivContainer[0], 'scrollTimer', setTimeout(function () {
+                if (cfg.hscrollTimer === null) {
                     _xUpdateColumnsVisibility(cfg);
-                }, 300));
+                    cfg.hscrollTimer = setTimeout(function() {
+                        cfg.hscrollTimer = null;
+                    }, 300);
+                }
             });
-
-          if (cfg.fixedColumnsRight > 0) {
-            var $cell = $(row.insertCell(2));
-            $cell.attr('colspan', cfg.fixedColumnsRight +
-              ($('.sg-v-scroll-cell', cfg.$table).length > 0 ? 1 : 0));
+          //insert empty 'padding' cell at right of scrollbar-row
+          var cc = cfg.fixedColumnsRight +
+              (cfg.vbar ? 1 : 0) //($('.sg-v-scroll-cell', cfg.$table).length > 0 ? 1 : 0);
+          if (cc > 0) {
+            var $cell = $(row.insertCell(-1));
+            $cell.css({
+              'margin': 0,
+              'border': 0,
+              'padding': 0
+            });
+            if (cc > 1)
+              $cell.attr('colspan', cc);
           }
+          cfg.hbar = true; //cache bar's presence
         }
       }
 
@@ -313,8 +330,8 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       }
 
       function _xScrollDelta(cfg) {
-        var $widthContainer = $('.sg-h-scroll-container', cfg.$table);
-        return $('div', $widthContainer).width() - $widthContainer.width();
+        var $widthDivContainer = $('.sg-h-scroll-container', cfg.$table);
+        return $('div', $widthDivContainer).width() - $widthDivContainer.width();
       }
 
       function _xScrollableColumnsCount(cfg) {
@@ -367,13 +384,13 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       function _xFirstVisibleColumnWidth(cfg) {
         var tbl = cfg.$table[0],
           i = cfg.fixedRowsTop,
-          lasti = tbl.rows.length - cfg.fixedRowsBottom - $('.sg-h-scroll-container', cfg.$table).length;
+          lasti = tbl.rows.length - cfg.fixedRowsBottom - (cfg.hbar ? 1 : 0); //$('.sg-h-scroll-container', cfg.$table).length;
         for (; i < lasti; i++) {
-          if ($(tbl.rows[i]).css('display') != 'none') {
+          if (tbl.rows[i].style.display != 'none') {
             var j = cfg.fixedColumnsLeft,
               lastj = _NumberOfColumns(cfg) - cfg.fixedColumnsRight;
             for (; j < lastj; j++) {
-              if ($(tbl.rows[i].cells[j]).css('display') != 'none')
+              if (tbl.rows[i].cells[j].style.display != 'none')
                 return $(tbl.rows[i].cells[j]).width();
             }
           }
@@ -384,13 +401,13 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       function _xLastVisibleColumnWidth(cfg) {
         var tbl = cfg.$table[0],
           i = cfg.fixedRowsTop,
-          lasti = tbl.rows.length - cfg.fixedRowsBottom - $('.sg-h-scroll-container', cfg.$table).length;
+          lasti = tbl.rows.length - cfg.fixedRowsBottom - (cfg.hbar ? 1 : 0); //$('.sg-h-scroll-container', cfg.$table).length;
         for (; i < lasti; i++) {
-          if ($(tbl.rows[i]).css('display') != 'none') {
+          if (tbl.rows[i].style.display != 'none') {
             var j = _NumberOfColumns(cfg) - cfg.fixedColumnsRight - 1,
               lastj = cfg.fixedColumnsLeft;
             for (; j >= lastj; j--) {
-              if ($(tbl.rows[i].cells[j]).css('display') != 'none')
+              if (tbl.rows[i].cells[j].style.display != 'none')
                 return $(tbl.rows[i].cells[j]).width();
             }
           }
@@ -400,19 +417,25 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
 
       function _xUpdateScrollWidths(cfg) {
 
-        var $leftContainer = $('.sg-h-scroll-container', cfg.$table),
-          $container = $leftContainer.closest('td');
-        $leftContainer.width($container.width());
-        var $widthDiv = $('div', $leftContainer);
-        $widthDiv.width((_xNumberOfScrollableColumns(cfg) / _xScrollCount(cfg)) * $container.width());
+        var $widthDivContainer = $('.sg-h-scroll-container', cfg.$table),
+          position = $widthDivContainer.scrollLeft(),
+          $widthDiv = $('div', $widthDivContainer),
+          $container = $widthDivContainer.closest('td'),
+          cw = $container.width(),
+          wide = (_xNumberOfScrollableColumns(cfg) / _xScrollCount(cfg)) * cw;
+        $widthDivContainer //.hide()
+         .width(cw);
+        $widthDiv.width(wide);
+        $widthDivContainer //.show()
+         .scrollLeft(position); //refresh bar to show its proper size
       }
 
       function _xUpdateColumnsVisibility(cfg) {
         if (!_xScrollNeeded(cfg))
           return;
 
-        var $leftContainer = $('.sg-h-scroll-container', cfg.$table),
-          startFromX = Math.floor($leftContainer.scrollLeft() / _xColumnScrollStep(cfg)),
+        var $widthDivContainer = $('.sg-h-scroll-container', cfg.$table),
+          startFromX = Math.floor($widthDivContainer.scrollLeft() / _xColumnScrollStep(cfg)),
           relativeLeft = _xCurrentRelativeScrollLeft(cfg),
           i = cfg.fixedColumnsLeft,
           lasti = _NumberOfColumns(cfg) - cfg.fixedColumnsRight;
@@ -429,7 +452,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       function _yNumberOfScrollableRows(cfg) {
         var tbl = cfg.$table[0],
           number = tbl.rows.length - cfg.fixedRowsTop - cfg.fixedRowsBottom;
-        if ($('.sg-h-scroll-container', cfg.$table).length > 0)
+        if (cfg.hbar) //($('.sg-h-scroll-container', cfg.$table).length > 0)
           number--;
 
         if (number < 1)
@@ -440,8 +463,9 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       function _yScrollCount(cfg) {
         var tbl = cfg.$table[0],
           number = tbl.rows.length - cfg.fixedRowsTop - cfg.fixedRowsBottom;
-        if ($('.sg-h-scroll-container', cfg.$table).length > 0)
-          number--;
+        //allow for possible horz. 'scrollbar' row 
+//CHECKME if cfg.hbar
+//          number--;
 
         if (number > cfg.scrollableRows)
           return cfg.scrollableRows;
@@ -453,7 +477,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       function _yScrollNeeded(cfg) {
         var tbl = cfg.$table[0],
           number = tbl.rows.length - cfg.fixedRowsTop - cfg.fixedRowsBottom;
-        if ($('.sg-h-scroll-container', cfg.$table).length > 0)
+        if (cfg.hbar) //($('.sg-h-scroll-container', cfg.$table).length > 0)
           number--;
         return number > cfg.scrollableRows;
       }
@@ -464,6 +488,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
           return;
 
         if (_yScrollNeeded(cfg) || cfg.overflowY == 'scroll') {
+          //insert empty 'padding' cell at end of top-freeze rows
           var $cell = $(tbl.rows[0].insertCell(tbl.rows[0].cells.length));
           if ($cell.prev().is('th')) {
             $cell[0].outerHTML = '<th style="margin:0;border:0;padding:0;"></th>'; //TODO old-browser compatibility
@@ -474,36 +499,57 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
               'padding': 0
             });
           }
-          $cell.attr('rowspan', cfg.fixedRowsTop);
+          if (cfg.fixedRowsTop > 1) //extend down to cover all frozen top rows
+              $cell.attr('rowspan', cfg.fixedRowsTop);
 
-          var $container = $(tbl.rows[cfg.fixedRowsTop + cfg.startFrom].insertCell(tbl.rows[cfg.fixedRowsTop + cfg.startFrom].cells.length));
-          $container.attr('rowspan', _yScrollCount(cfg))
-            .attr('width', '1px')
-            .addClass('sg-v-scroll-cell');
+          //insert 'scrollbar' cell at end of top scrollable row
+          var bartop = cfg.fixedRowsTop + cfg.startFrom, //row where top of vscroll bar is
+           $container = $(tbl.rows[bartop].insertCell(tbl.rows[bartop].cells.length)),
+           //longer bar if vscroll active && bottom-frozen-rows = 0
+           span = _yScrollCount(cfg);
+           //extend down to cover all scrollable rows
+           $container.attr('rowspan', span)
+            .attr('width', 1)
+            .css({'margin-top':0, 'margin-bottom':0, 'padding-top':0, 'padding-bottom':0})
+            .addClass('sg-v-scroll-cell'); //maybe additional styling from this
+          var ch = $container.outerHeight();
 
-          var $heightDivContainer = $('<div class="sg-v-scroll-container"></div>');
+          var $heightDivContainer = $('<div></div>');
           $heightDivContainer.css({
+              'margin-top': 0, 'margin-bottom': 0,
+              'padding-top': 0, 'padding-bottom': 0,
               'overflow-y': 'scroll',
               'overflow': 'scroll'
             })
-            .height($container.height());
+            .addClass('sg-v-scroll-container') //maybe more styling
+            .height(ch);
 
-          var $heightDiv = $('<div style="width: 1px;"></div>');
-          $heightDiv.height((_yNumberOfScrollableRows(cfg) / _yScrollCount(cfg)) * $container.height())
+          var $heightDiv = $('<div></div>');
+          $heightDiv.width(1).height((_yNumberOfScrollableRows(cfg) / _yScrollCount(cfg)) * ch)
             .appendTo($heightDivContainer);
           $heightDivContainer.appendTo($container)
             .on('scroll', cfg, function() {
-                clearTimeout($.data($heightDivContainer[0],'scrollTimer'));
-                $.data($heightDivContainer[0], 'scrollTimer', setTimeout(function () {
+                if (cfg.vscrollTimer === null) {
                     _yUpdateRowsVisibility(cfg);
-                }, 300));
+                    cfg.vscrollTimer = setTimeout(function() {
+                        cfg.vscrollTimer = null;
+                    }, 300);
+                }
             });
 
           if (cfg.fixedRowsBottom !== 0) {
+           //insert empty 'padding' cell at end of bottom-freeze rows
             var firstBotomRow = tbl.rows[_yNumberOfScrollableRows(cfg) + cfg.fixedRowsTop];
             var $bottomCell = $(firstBotomRow.insertCell(firstBotomRow.cells.length));
-            $bottomCell.attr('rowspan', cfg.fixedRowsBottom);
+            $bottomCell.css({
+              'margin': 0,
+              'border': 0,
+              'padding': 0
+            });
+            if (cfg.fixedRowsBottom > 1)
+                $bottomCell.attr('rowspan', cfg.fixedRowsBottom);
           }
+          cfg.vbar = true; //cache bar's presence
         }
       }
 
@@ -566,21 +612,24 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       function _yUpdateScrollHeights(cfg) {
 
         var $topContainer = $('.sg-v-scroll-container', cfg.$table),
+          position = $topContainer.scrollTop(),
           $heightDiv = $('div', $topContainer),
           $container = $topContainer.closest('td'),
-          high = (_yNumberOfScrollableRows(cfg) / _yScrollCount(cfg)) * $container.height();
-        $topContainer.hide()
-          .height($container.height());
+          ch = $container.height(),
+          high = (_yNumberOfScrollableRows(cfg) / _yScrollCount(cfg)) * ch;
+        $topContainer //.hide()
+          .height(ch);
         $heightDiv.height(high);
-        $topContainer.show();
+        $topContainer //.show()
+        .scrollTop(position); //refresh bar to show its proper size
       }
 
       function _yFirstVisibleRowHeight(cfg) {
         var tbl = cfg.$table[0],
           i = cfg.fixedRowsTop,
-          lasti = tbl.rows.length - cfg.fixedRowsBottom - $('.sg-h-scroll-container', cfg.$table).length;
+          lasti = tbl.rows.length - cfg.fixedRowsBottom - (cfg.hbar ? 1 : 0); //$('.sg-h-scroll-container', cfg.$table).length;
         for (; i < lasti; i++) {
-          if ($(tbl.rows[i]).css('display') != 'none') {
+          if (tbl.rows[i].style.display != 'none') {
             return $(tbl.rows[i]).height();
           }
         }
@@ -589,10 +638,10 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
 
       function _yLastVisibleRowHeight(cfg) {
         var tbl = cfg.$table[0],
-          i = tbl.rows.length - cfg.fixedRowsBottom - $('.sg-h-scroll-container', cfg.$table).length - 1,
+          i = tbl.rows.length - cfg.fixedRowsBottom - (cfg.hbar ? 1 : 0) - 1; //$('.sg-h-scroll-container', cfg.$table).length - 1,
           lasti = cfg.fixedRowsTop;
         for (; i >= lasti; i--) {
-          if ($(tbl.rows[i]).css('display') != 'none') {
+          if (tbl.rows[i].style.display != 'none') {
             return $(tbl.rows[i]).height();
           }
         }
@@ -611,7 +660,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
 
         var tbl = cfg.$table[0],
           i = cfg.fixedRowsTop,
-          lasti = tbl.rows.length - cfg.fixedRowsBottom - $('.sg-h-scroll-container', cfg.$table).length;
+          lasti = tbl.rows.length - cfg.fixedRowsBottom - (cfg.hbar ? 1 : 0); //$('.sg-h-scroll-container', cfg.$table).length;
         for (; i < lasti; i++) {
           if (i >= cfg.fixedRowsTop + startFrom &&
             i < cfg.fixedRowsTop + startFrom + cfg.scrollableRows) {
@@ -731,37 +780,41 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
       }
 
       function _reSize(event) {
-        var timer = null; //TODO shared
-        if (!timer) {
-            var cfg = event.data;
-            timer = setTimeout(function() {
-//          var $p = context.$table.parent();
-            $p.detach(cfg.$table);
-            context._CountScrollables(cfg);
-            if (cfg.scrollableRows == 'auto' || cfg.autorows)
-              _yUpdateRowsVisibility(cfg);
-            if (cfg.scrollableColumns == 'auto' || cfg.autocols)
-              _xUpdateColumnsVisibility(cfg);
-//          $p.append(cfg.$table);
-            timer = null;
+        var cfg = event.data;
+        if (cfg.resizeTimer === null) {
+          _countScrollables(cfg); //count before detaching ! (uses parent)
+          var $p = cfg.$table.parent(); //speedup
+          $p.detach(cfg.$table);
+          if (cfg.scrollableRows == 'auto' || cfg.autorows) {
+            _yUpdateRowsVisibility(cfg);
+            _yUpdateScrollHeights(cfg);
+          }
+          if (cfg.scrollableColumns == 'auto' || cfg.autocols) {
+            _xUpdateColumnsVisibility(cfg);
+            _xUpdateScrollWidths(cfg);
+          }
+          $p.append(cfg.$table);
+          cfg.resizeTimer = setTimeout(function() {
+            cfg.resizeTimer = null;
           }, 333);
         }
       }
 
       //misc
+      //setup for merged-cell processing
       function _setActualCellIndexes(cfg) {
-        var rows = cfg.$table[0].rows;
+        var rows = cfg.$table[0].rows,
+           lastr = rows.length;
 
-        for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        for (var rowIndex = 0; rowIndex < lastr; rowIndex++) {
           var row = rows[rowIndex],
+            lastc = row.cells.length,
             indAdjustments = row[CELL_SPAN_ADJUSTMENTS];
           if (!indAdjustments)
             indAdjustments = [];
 
-          for (var cellIndex = 0; cellIndex < row.cells.length; cellIndex++) {
-
+          for (var cellIndex = 0; cellIndex < lastc; cellIndex++) {
             var prevCellEndsAt = cellIndex - 1;
-
             if (cellIndex > 0) {
               var $prevCell = $(row.cells[cellIndex - 1]);
               prevCellEndsAt = $prevCell[0][CELL_INDEX_DATA];
@@ -782,10 +835,9 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
 
             $cell[0][CELL_INDEX_DATA] = indexToSet;
 
-            if ($cell.attr('rowspan') > 1) {
-              var span = $cell.attr('rowspan');
-
-              for (var rowShift = rowIndex + 1; rowShift < rowIndex + span && rowShift < rows.length; rowShift++) {
+            var span = $cell.attr('rowspan');
+            if (span > 1) {
+              for (var rowShift = rowIndex + 1; rowShift < rowIndex + span && rowShift < lastr; rowShift++) {
                 var shiftedRow = rows[rowShift],
                   adjustments = shiftedRow[CELL_SPAN_ADJUSTMENTS];
                 if (!adjustments)
@@ -818,32 +870,34 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
         if ($.data(this, '_sg_config'))
           return this; //already bound
 
-        var current = ['fixedRowsTop', 'fixedRowsBottom', 'scrollableRows', 'scrollableColumns'],
-          deprec = ['rowsInHeader', 'rowsInFooter', 'rowsInScrollableArea', 'columnsInScrollableArea'];
-        for (var i = 0; i < deprec.length; i++) {
-          if (deprec[i] in options) {
-            options[current[i]] = options[deprec[i]];
-            delete options[deprec[i]];
-          }
-        }
-
         var cfg = $.extend({}, defaults, {
-          $table: $elem, // cache to reduce context changes
-          _currentTouch: null,
+          $table: $elem, //cache
           _columnsCount: -1,
-          startFrom: 0
+          _currentTouch: null,
+          startFrom: 0, //index of top displayed row
+          hbar: false, //whether horz bar is displayed
+          vbar: false, //whether vertical bar is displayed
+          hscrollTimer: null,
+          vscrollTimer: null,
+          resizeTimer: null
         }, options || {});
 
-        _ensureSettings(cfg);
+        _ensureSettings(cfg); //set top/bottom fixed rows
+        _countScrollables(cfg);
 
-        $.data(this, '_sg_config', cfg);
+        _setActualCellIndexes(cfg); //arrange to manage merged cells
 
-        _setActualCellIndexes(cfg);
         _yInitScroll(cfg);
-        _yUpdateRowsVisibility(cfg);
-        _xInitScroll(cfg);
-        _xUpdateColumnsVisibility(cfg);
         _yUpdateScrollHeights(cfg);
+        _xInitScroll(cfg);
+        _xUpdateScrollWidths(cfg);
+
+        if (cfg.scrollY)
+            _yMoveScroll(cfg.scrollY, cfg);
+        _yUpdateRowsVisibility(cfg);
+        if (cfg.scrollX)
+            _xMoveScroll(cfg.scrollX, cfg);
+        _xUpdateColumnsVisibility(cfg);
 
         $elem.on('mousewheel', cfg, _tableMouseWheel)
           .on('DOMMouseScroll', cfg, _tableMouseWheel) // for Firefox
@@ -852,11 +906,7 @@ div.sg-h-scroll-container (located inside td.sg-h-scroll-cell)
           .on('touchend', cfg, _touchEnd);
         $(window).on('resize', cfg, _reSize);
 
-        _xMoveScroll(cfg.scrollX, cfg);
-        _yMoveScroll(cfg.scrollY, cfg);
-        _yUpdateRowsVisibility(cfg);
-        _xUpdateColumnsVisibility(cfg);
-
+        $.data(this, '_sg_config', 'set'); //for duplication-check
         return this;
       });
     };
